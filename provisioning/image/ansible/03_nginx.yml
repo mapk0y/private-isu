@@ -1,24 +1,53 @@
+# -*- mode: Yaml; -*-
+# vi: set ts=2 sw=2 sts=0 et:
+
 ---
 - hosts: guests:extras
   become: yes
   gather_facts: no
   tasks:
-    - apt: name=nginx
+    - name: Add nginx repository
+      yum_repository:
+        name: nginx
+        description: nginx repository
+        baseurl: http://nginx.org/packages/centos/7/$basearch/
+        gpgcheck: no
+        enabled: yes
+    - name: Install nginx
+      yum:
+        name: "{{ packages }}"
+        state: present
+      vars:
+        packages:
+          - nginx
     - name: start nginx
-      service: name=nginx state=running enabled=yes
-      notify: restart nginx
+      systemd:
+        name: nginx
+        state: started
+        daemon_reload: yes
+        enabled: yes
     - name: clean nginx
-      file: path=/etc/nginx/sites-available/default state=absent
-      notify: reload nginx
-    - name: clean nginx
-      file: path=/etc/nginx/sites-enabled/default state=absent
-      notify: reload nginx
-    - copy: src=../files/etc/nginx/sites-available/isucon.conf dest=/etc/nginx/sites-available/isucon.conf owner=root mode=644
-      notify: reload nginx
-    - copy: src=../files/etc/nginx/sites-available/isucon-php.conf dest=/etc/nginx/sites-available/isucon-php.conf owner=root mode=644
-      notify: reload nginx
-    - file: src=/etc/nginx/sites-available/isucon.conf dest=/etc/nginx/sites-enabled/isucon.conf state=link
-      notify: reload nginx
+      file:
+        path: /etc/nginx/conf.d/default.conf
+        state: absent
+      notify:
+        - reload nginx
+    - name: Copy isucon nginx config
+      copy:
+        src: ../files/etc/nginx/conf.d/{{ item }}
+        dest: /etc/nginx/conf.d/{{ item }}
+        owner: root
+        group: root
+        mode: 0644
+      with_items:
+        - isucon.conf
+       #- isucon-php.conf
+      notify:
+        - reload nginx
   handlers:
     - name: reload nginx
-      shell: /usr/sbin/nginx -t && /etc/init.d/nginx reload
+      systemd:
+        name: nginx
+        state: reloaded
+        daemon_reload: yes
+

@@ -3,5 +3,74 @@
   become: yes
   gather_facts: no
   tasks:
-    - apt: name=mysql-server
-    - apt: name=memcached
+    - name: Remove Mariadb
+      yum:
+        name: "{{ packages }}"
+        state: absent
+      vars:
+        packages:
+          - mariadb
+          - mariadb-libs
+          - mariadb-server
+
+    - name: Install MySQL repository
+      yum:
+        name: https://dev.mysql.com/get/mysql80-community-release-el7-1.noarch.rpm
+        state: present
+        validate_certs: yes
+
+    - name: Install MySQL and Memcached
+      yum:
+        name: "{{ packages }}"
+        state: present
+      vars:
+        packages:
+          - mysql-community-server
+          - memcached
+
+    - name: check mysql initialize
+      stat:
+        path: /var/lib/mysql/ibdata1
+      register: mysql_data_file
+      check_mode: no
+
+    - name: Create mysqld.log file
+      file:
+        path: /var/log/mysqld.log
+        state: touch
+        owner: mysql
+        group: mysql
+        mode: 0644
+      when: not mysql_data_file.stat.exists
+
+    - name: change owner/group mysql from root
+      file:
+        path: /var/lib/mysql
+        recurse: yes
+        owner: mysql
+        group: mysql
+      when: not mysql_data_file.stat.exists
+
+    - name: Copy isucon nginx config
+      copy:
+        src: ../files/etc/sysconfig/mysqld
+        dest: /etc/sysconfig/mysqld
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: Run initialize-insecure
+      command: /sbin/mysqld --initialize-insecure
+      when: not mysql_data_file.stat.exists
+      become: yes
+      become_user: mysql
+
+    - name: start MySQL and Memcached
+      systemd:
+        name: "{{ item }}"
+        state: started
+        daemon_reload: yes
+        enabled: yes
+      with_items:
+        - mysqld
+        - memcached

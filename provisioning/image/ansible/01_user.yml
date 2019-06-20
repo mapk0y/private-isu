@@ -1,15 +1,50 @@
 ---
 - hosts: guests:extras
-#- hosts: extras
   gather_facts: no
   become: yes
   tasks:
     - name: change timezone to JST
-      shell: cp -p /usr/share/zoneinfo/Japan /etc/localtime
-    - group: name=wheel
-    - user: name=isucon groups=wheel shell=/bin/bash
-    - copy: src=../files/etc/profile.d/bashrc dest=/home/isucon/.profile owner=isucon mode=755
+      timezone:
+        name: Asia/Tokyo
+    - name: Create isucon group
+      group:
+        name: isucon
+        gid: 1001
+        state: present
+        system: no
+    - name: Create isucon user
+      user:
+        name: isucon
+        uid: 1001
+        group: isucon
+        home: /home/isucon
+        shell: /bin/bash
+        state: present
+        system: no
+    - name: Setup .profile (PATH/GOPATH/etc...)
+      copy:
+        src: ../files/etc/profile.d/bashrc
+        dest: /home/isucon/.bash_profile
+        owner: isucon
+        mode: 0755
     - name: create .ssh
-      file: path=/home/isucon/.ssh/ state=directory owner=isucon group=isucon mode=755
-    - copy: src=../files/home/isucon/.ssh/authorized_keys dest=/home/isucon/.ssh/authorized_keys owner=isucon mode=755
-    - lineinfile: dest=/etc/sudoers state=present regexp='^%wheel ALL\=' line='%wheel ALL=(ALL) NOPASSWD:ALL' validate='visudo -cf %s'
+      file:
+        path: /home/isucon/.ssh/
+        state: directory
+        owner: isucon
+        group: isucon
+        mode: 0755
+    - name: Setup authorized_keys
+      copy:
+        src: ../files/home/isucon/.ssh/authorized_keys
+        dest: /home/isucon/.ssh/authorized_keys
+        owner: isucon
+        mode: 0755
+    - name: Add sudoers (isucon)
+      copy:
+        content: "isucon  ALL=(ALL) NOPASSWD:ALL\n"
+        dest: /etc/sudoers.d/90-isucon-user
+        owner: root
+        group: root
+        mode: 0440
+        validate: /usr/sbin/visudo -cf %s

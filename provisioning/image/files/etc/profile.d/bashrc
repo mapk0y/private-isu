@@ -1,6 +1,6 @@
 #!/bin/bash
-if [ -f /etc/bashrc ]; then
-  . /etc/bashrc
+if [ -f ${HOME}/bashrc ]; then
+  . ${HOME}/bashrc
 fi
 
 export PATH=/usr/local/bin:$PATH
@@ -12,5 +12,6 @@ export PATH=/home/isucon/.local/php/bin:$PATH
 export PATH=/home/isucon/.local/php/sbin:$PATH
 export PATH=/home/isucon/.local/go/bin:$PATH
 export GOROOT=/home/isucon/.local/go
-export GOPATH=/home/isucon/gocode
+export GOPATH=/home/isucon/private_isu/webapp/golang
+export PATH=${GOPATH}/bin:$PATH
 export PATH=/home/isucon/.local/scala/bin:$PATH

@@ -5,51 +5,108 @@
   become_user: isucon
   gather_facts: no
   tasks:
-    - git:
-        repo=https://github.com/tagomoris/xbuild.git
-        dest=/home/isucon/.xbuild
-        update=yes
-    # ruby
-    - command: /home/isucon/.xbuild/ruby-install 2.3.0 /home/isucon/.local/ruby
-      args:
-        creates: /home/isucon/.local/ruby/bin/ruby
-    - command: /.local/ruby/bin/gem install bundler
-      args:
-        creates: /home/isucon/.local/ruby/bin/bundle
-    # node
-    - command: /home/isucon/.xbuild/node-install v4.4.3 /home/isucon/.local/node
-      args:
-        creates: /home/isucon/.local/node/bin/node
-    # golang
-    - command: /home/isucon/.xbuild/go-install 1.6.2 /home/isucon/.local/go
-      args:
-        creates: /home/isucon/.local/go/bin/go
+    - name: Setup xbuild
+      git:
+        repo: https://github.com/tagomoris/xbuild.git
+        dest: /home/isucon/.xbuild
+        version: master
+        update: yes
 
-- hosts: guests:extras
-  become: yes
-  gather_facts: no
-  tasks:
-    - name: Apt add Dotdeb jessie repository
-      apt_repository: repo="{{item}}"
-      with_items:
-          - deb http://packages.dotdeb.org jessie all
-          - deb-src http://packages.dotdeb.org jessie all
-      tags: php7
-    - name: Apt install Dotdeb key
-      apt_key: url=http://www.dotdeb.org/dotdeb.gpg
-      tags: php7
-    - name: Apt update
-      apt: update_cache=yes
-      tags: php7
-    - name: PHP7 install
-      apt: name="{{item}}"
-      with_items:
-        - php7.0-cli
-        - php7.0-fpm
-        - php7.0-mysql
-        - php7.0-memcached
-      tags: php7
-    - name: copy www.conf (php-fpm)
-      copy: src=../files/etc/php/7.0/fpm/pool.d/www.conf dest=/etc/php/7.0/fpm/pool.d/www.conf owner=root mode=644
-    - name: stop php-fpm
-      service: name=php7.0-fpm state=stopped enabled=yes
+    # ruby
+#   - name: Check Installed Ruby
+#     command: /home/isucon/.local/ruby/bin/ruby -e "puts RUBY_VERSION"
+#     args:
+#       chdir: /home/isucon
+#     check_mode: no
+#     register: ruby_version_output
+#     changed_when: ruby_version_output|failed
+#     ignore_errors: True
+#
+#   - name: Debug ruby_version_output
+#     debug:
+#       var: ruby_version_output
+#     when: debug == "yes"
+#
+#   - name: Install Ruby
+#     command: /home/isucon/.xbuild/ruby-install 2.3.0 /home/isucon/.local/ruby
+#     args:
+#       chdir: /home/isucon
+#     when: ruby_version_output|failed or ruby_version_output.stdout != "2.3.0"
+#
+#   - name: Install bundler
+#     command: /.local/ruby/bin/gem install bundler
+#     args:
+#       creates: /home/isucon/.local/ruby/bin/bundle
+
+    # node
+#   - name: Check Installed Node.js
+#     command: /home/isucon/.local/node/bin/node --version
+#     args:
+#       chdir: /home/isucon
+#     check_mode: no
+#     register: nodejs_version_output
+#     changed_when: nodejs_version_output|failed
+#     ignore_errors: True
+#
+#   - name: Debug nodejs_version_output
+#     debug:
+#       var: nodejs_version_output
+#     when: debug == "yes"
+#
+#   - name: Install Node.js
+#     command: /home/isucon/.xbuild/node-install v4.4.3 /home/isucon/.local/node
+#     args:
+#       chdir: /home/isucon
+#     when: nodejs_version_output|failed or nodejs_version_output.stdout != "v4.4.3"
+
+    # golang
+    - name: Check Installed Golang
+      command: /home/isucon/.local/go/bin/go version
+      args:
+        chdir: /home/isucon
+      environment:
+        GOROOT: /home/isucon/.local/go
+        GOPATH: /home/isucon/gocode
+      check_mode: no
+      register: golang_version_output
+      changed_when: golang_version_output is failed
+      ignore_errors: True
+
+    - name: Debug golang_version_output
+      debug:
+        var: golang_version_output
+
+    - name: Install Golang
+      command: /home/isucon/.xbuild/go-install 1.10.3 /home/isucon/.local/go
+      args:
+        chdir: /home/isucon
+      when: golang_version_output is failed or golang_version_output.stdout != "go version go1.10.3 linux/amd64"
+
+#- hosts: guests:extras
+# become: yes
+# gather_facts: no
+# tasks:
+#   - name: Apt add Dotdeb jessie repository
+#     apt_repository: repo="{{item}}"
+#     with_items:
+#         - deb http://packages.dotdeb.org jessie all
+#         - deb-src http://packages.dotdeb.org jessie all
+#     tags: php7
+#   - name: Apt install Dotdeb key
+#     apt_key: url=http://www.dotdeb.org/dotdeb.gpg
+#     tags: php7
+#   - name: Apt update
+#     apt: update_cache=yes
+#     tags: php7
+#   - name: PHP7 install
+#     apt: name="{{item}}"
+#     with_items:
+#       - php7.0-cli
+#       - php7.0-fpm
+#       - php7.0-mysql
+#       - php7.0-memcached
+#     tags: php7
+#   - name: copy www.conf (php-fpm)
+#     copy: src=../files/etc/php/7.0/fpm/pool.d/www.conf dest=/etc/php/7.0/fpm/pool.d/www.conf owner=root mode=644
+#   - name: stop php-fpm
+#     service: name=php7.0-fpm state=stopped enabled=yes
